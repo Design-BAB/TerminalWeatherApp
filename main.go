@@ -8,6 +8,19 @@ import (
 	"github.com/rivo/tview"
 )
 
+type weatherReport struct {
+	zip           int
+	place         string
+	weatherStatus string
+	temp          [5]int
+}
+
+func newWeatherReport(Zip int) *weatherReport {
+	Temp := [5]int{90, 99, 100, 90, 81}
+	theReport := weatherReport{zip: Zip, place: "Cape Coral", weatherStatus: "Sunny", temp: Temp}
+	return &theReport
+}
+
 func isThereAZip(theFile string) bool {
 	_, err := os.Stat(theFile)
 	if os.IsNotExist(err) {
@@ -22,7 +35,14 @@ func isThereAZip(theFile string) bool {
 	}
 }
 
-func askForZip(form *tview.Form, app *tview.Application, file *os.File) {
+func askForZip(flex *tview.Flex, app *tview.Application) {
+	file, err := os.Create("zip.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	//defer file.Close()
+	form := tview.NewForm()
 	zipField := tview.NewInputField().
 		SetLabel("Please enter your 5-digit zip code: ").
 		SetFieldWidth(20)
@@ -39,28 +59,54 @@ func askForZip(form *tview.Form, app *tview.Application, file *os.File) {
 			return
 		}
 	})
+	flex.AddItem(form, 0, 1, true)
+}
 
+func displayWeather(flex *tview.Flex, report *weatherReport) {
+	table := tview.NewTable().SetBorders(true)
+
+	const dayRow = 0
+	const tempRow = 1
+
+	for column, temp := range report.temp {
+		dayNumber := column + 1
+
+		dayText := fmt.Sprintf("%d", dayNumber)
+		tempText := fmt.Sprintf("%d°", temp)
+
+		dayCell := tview.NewTableCell(dayText)
+		dayCell.SetAlign(tview.AlignCenter)
+		dayCell.SetSelectable(false)
+
+		tempCell := tview.NewTableCell(tempText)
+		tempCell.SetAlign(tview.AlignCenter)
+		tempCell.SetSelectable(false)
+
+		table.SetCell(dayRow, column, dayCell)
+		table.SetCell(tempRow, column, tempCell)
+	}
+
+	flex.AddItem(table, 0, 1, false)
 }
 
 func main() {
 	fmt.Println(isThereAZip("zip.txt"))
-	file, err := os.Create("zip.txt")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer file.Close()
-
 	app := tview.NewApplication()
 	app.EnableMouse(true)
 
 	tview.Styles.PrimitiveBackgroundColor = tcell.ColorDefault
 
-	form := tview.NewForm()
-	askForZip(form, app, file)
-
 	flex := tview.NewFlex()
-	flex.AddItem(form, 0, 1, true)
+
+	flex.SetDirection(2)
+	flex.SetBorder(true)
+
+	if isThereAZip("zip.txt") {
+		ReportForToday := newWeatherReport(33904)
+		displayWeather(flex, ReportForToday)
+	} else {
+		askForZip(flex, app)
+	}
 
 	if err := app.SetRoot(flex, true).Run(); err != nil {
 		panic(err)
